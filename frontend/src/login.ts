@@ -15,11 +15,17 @@ export async function renderLogin(container: HTMLElement, onLogin: () => void) {
   const form = container.querySelector('#login-form') as HTMLFormElement;
   const errorDiv = container.querySelector('#login-error') as HTMLElement;
   const errorMessage = container.querySelector('#error-message') as HTMLElement;
+  const usernameInput = container.querySelector('#username') as HTMLInputElement;
+  const passwordInput = container.querySelector('#password') as HTMLInputElement;
+
+  // Asegurar que los campos estén vacíos al cargar
+  if (usernameInput) usernameInput.value = '';
+  if (passwordInput) passwordInput.value = '';
 
   form?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const username = (container.querySelector('#username') as HTMLInputElement)?.value;
-    const password = (container.querySelector('#password') as HTMLInputElement)?.value;
+    const username = usernameInput?.value;
+    const password = passwordInput?.value;
 
     if (username?.trim().toLowerCase() === 'admin' && password === '123456') {
       errorDiv?.classList.add('view-hidden');

@@ -37,8 +37,7 @@ export class PaymentService {
       semester: payment.semester,
       date: payment.date,
       status: payment.status,
-      notes: payment.notes,
-      type: 'payment'
+      notes: payment.notes
     });
     
     return {

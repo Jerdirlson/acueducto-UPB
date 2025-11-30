@@ -33,7 +33,7 @@ class DatabaseService {
 
   // Properties
   async saveProperty(property: Property): Promise<Property> {
-    const properties = this.getProperties();
+    const properties = await this.getProperties();
     const index = properties.findIndex(p => p.id === property.id);
     
     if (index >= 0) {

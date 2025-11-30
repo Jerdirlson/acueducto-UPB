@@ -33,8 +33,7 @@ export class PropertyService {
       number: property.number,
       ownerName: property.ownerName,
       status: property.status,
-      notes: property.notes,
-      type: 'property'
+      notes: property.notes
     });
     
     return {

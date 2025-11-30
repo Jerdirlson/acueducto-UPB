@@ -22,8 +22,7 @@ export class IncidentService {
       dateReported: incident.dateReported,
       dateResolved: incident.dateResolved,
       status: incident.status,
-      notes: incident.notes,
-      type: 'incident'
+      notes: incident.notes
     });
     
     return {
