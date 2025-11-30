@@ -1,0 +1,30 @@
+<div>
+  <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+    <h2 class="text-2xl font-bold text-slate-800">Pagos</h2>
+    <button id="new-payment-btn" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded font-medium bg-upb-red text-white hover:bg-pink-700 shadow-sm">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Registrar
+    </button>
+  </div>
+
+  <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex items-end gap-2">
+    <div class="flex-1">
+      <label class="block text-sm font-semibold text-slate-600 mb-1">Filtrar por Semestre</label>
+      <input type="text" id="semester-filter" value="{{filterSemester}}" placeholder="Ej: 2024-1" class="w-full border p-2 rounded" />
+    </div>
+    <div class="pb-2 text-slate-400">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="space-y-3" id="payments-list">
+    <!-- Los pagos se inyectarán aquí dinámicamente -->
+  </div>
+</div>
+

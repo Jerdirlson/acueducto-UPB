@@ -1,0 +1,37 @@
+<div>
+  <h2 class="text-2xl font-bold text-slate-800 mb-6">Reporte General</h2>
+  
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white border-b-4 border-b-slate-600 p-4 rounded shadow-sm">
+      <p class="text-slate-500 text-sm font-bold uppercase">Total Predios</p>
+      <p class="text-4xl font-bold text-slate-800 mt-2">{{totalProperties}}</p>
+    </div>
+    <div class="bg-white border-b-4 border-b-green-500 p-4 rounded shadow-sm">
+      <p class="text-slate-500 text-sm font-bold uppercase">Recaudado ({{currentSemester}})</p>
+      <p class="text-4xl font-bold text-green-700 mt-2">${{totalCollected}}</p>
+    </div>
+    <div class="bg-white border-b-4 border-b-upb-red p-4 rounded shadow-sm">
+      <p class="text-slate-500 text-sm font-bold uppercase">En Mora</p>
+      <p class="text-4xl font-bold text-upb-red mt-2">{{lateCount}}</p>
+    </div>
+    <div class="bg-white border-b-4 border-b-amber-400 p-4 rounded shadow-sm">
+      <p class="text-slate-500 text-sm font-bold uppercase">Incidencias Activas</p>
+      <p class="text-4xl font-bold text-amber-600 mt-2">{{openIncidents}}</p>
+    </div>
+  </div>
+
+  <div class="bg-white border-l-4 border-l-upb-red border-y border-r border-slate-200 rounded shadow-sm p-4 mb-4">
+    <h3 class="text-lg font-bold text-upb-dark mb-3 border-b border-slate-100 pb-2">Estado de Pagos: {{currentSemester}}</h3>
+    <div class="h-64 w-full flex flex-col justify-center gap-4" id="chart-container">
+      {{chartBars}}
+    </div>
+    <div class="mt-4 text-center text-slate-500 text-sm">
+      Resumen visual del comportamiento de pago de la comunidad.
+    </div>
+  </div>
+  
+  <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+    <strong>Nota:</strong> Este reporte refleja la información almacenada actualmente en este dispositivo.
+  </div>
+</div>
+
