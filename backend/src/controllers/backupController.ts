@@ -1,6 +1,6 @@
 // Capa de Controladores - Controlador de Respaldo
 import { Request, Response } from 'express';
-import { BackupService } from '../services/backupService';
+import { BackupService } from '../services/backupService.js';
 
 export class BackupController {
   static async download(req: Request, res: Response): Promise<void> {

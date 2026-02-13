@@ -1,25 +1,49 @@
 <div>
   <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
     <h2 class="text-2xl font-bold text-slate-800">Pagos</h2>
-    <button id="new-payment-btn" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded font-medium bg-upb-red text-white hover:bg-pink-700 shadow-sm">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      Registrar
-    </button>
+    <div class="flex gap-2">
+      <button id="export-pdf-btn" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded font-medium bg-slate-600 text-white hover:bg-slate-700 shadow-sm">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Exportar PDF
+      </button>
+      <button id="new-payment-btn" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded font-medium bg-upb-red text-white hover:bg-pink-700 shadow-sm">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Registrar
+      </button>
+    </div>
   </div>
 
-  <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex items-end gap-2">
-    <div class="flex-1">
+  <!-- Search and Filters Section -->
+  <div id="search-filters-section"></div>
+
+  <!-- Filters Row -->
+  <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
       <label class="block text-sm font-semibold text-slate-600 mb-1">Filtrar por Semestre</label>
-      <input type="text" id="semester-filter" value="{{filterSemester}}" placeholder="Ej: 2024-1" class="w-full border p-2 rounded" />
+      <input type="text" id="semester-filter" value="{{filterSemester}}" placeholder="Ej: 2024-1" class="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-upb-red" />
     </div>
-    <div class="pb-2 text-slate-400">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/>
-        <path d="M21 21l-4.35-4.35"/>
-      </svg>
+    <div>
+      <label class="block text-sm font-semibold text-slate-600 mb-1">Filtrar por Estado</label>
+      <select id="payment-status-filter" class="w-full border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-upb-red">
+        <option value="all">Todos</option>
+        <option value="Pagado">Pagado</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="En Mora">En Mora</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-semibold text-slate-600 mb-1">Rango de Fechas</label>
+      <div class="flex gap-2">
+        <input type="date" id="date-from-filter" class="flex-1 border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-upb-red" />
+        <input type="date" id="date-to-filter" class="flex-1 border border-slate-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-upb-red" />
+      </div>
     </div>
   </div>
 

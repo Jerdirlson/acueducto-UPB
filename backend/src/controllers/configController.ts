@@ -1,6 +1,6 @@
 // Capa de Controladores - Controlador de Configuración
 import { Request, Response } from 'express';
-import { ConfigService } from '../services/configService';
+import { ConfigService } from '../services/configService.js';
 
 export class ConfigController {
   static async get(req: Request, res: Response): Promise<void> {

@@ -1,89 +1,235 @@
-// Capa de Datos - localStorage para persistencia local
-export interface Property {
-  id: string;
-  number: string;
-  ownerName: string;
-  status: string;
-  notes?: string;
-}
+// Capa de Datos - PouchDB sobre IndexedDB para persistencia local
+import PouchDB from 'pouchdb';
+import type { Property, Payment, Incident } from '../types';
 
-export interface Payment {
-  id: string;
-  propertyId: string;
-  amount: number;
-  semester: string;
-  date: string;
-  status: string;
-  notes?: string;
-}
-
-export interface Incident {
-  id: string;
-  description: string;
-  dateReported: string;
-  dateResolved?: string;
-  status: string;
-  notes?: string;
+interface PouchDBDocument {
+  _id: string;
+  _rev?: string;
+  type: string;
+  [key: string]: any;
 }
 
 class DatabaseService {
-  private readonly PROPERTIES_KEY = 'acueducto_properties';
-  private readonly PAYMENTS_KEY = 'acueducto_payments';
-  private readonly INCIDENTS_KEY = 'acueducto_incidents';
+  private db: PouchDB.Database;
+
+  constructor() {
+    // Inicializar PouchDB local usando IndexedDB
+    this.db = new PouchDB('acueducto-local');
+  }
+
+  // Transform PouchDB document to Property
+  private docToProperty(doc: PouchDBDocument): Property {
+    return {
+      id: doc.id || doc._id.replace('property:', ''),
+      number: doc.number,
+      ownerName: doc.ownerName,
+      status: doc.status,
+      notes: doc.notes
+    };
+  }
+
+  // Transform Property to PouchDB document
+  private propertyToDoc(property: Property, rev?: string): PouchDBDocument {
+    const doc: PouchDBDocument = {
+      _id: `property:${property.id}`,
+      type: 'property',
+      id: property.id,
+      number: property.number,
+      ownerName: property.ownerName,
+      status: property.status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (rev) {
+      doc._rev = rev;
+    }
+
+    if (property.notes) {
+      doc.notes = property.notes;
+    }
+
+    return doc;
+  }
+
+  // Transform PouchDB document to Payment
+  private docToPayment(doc: PouchDBDocument): Payment {
+    return {
+      id: doc.id || doc._id.replace('payment:', ''),
+      propertyId: doc.propertyId,
+      amount: doc.amount,
+      semester: doc.semester,
+      date: doc.date,
+      status: doc.status,
+      notes: doc.notes
+    };
+  }
+
+  // Transform Payment to PouchDB document
+  private paymentToDoc(payment: Payment, rev?: string): PouchDBDocument {
+    const doc: PouchDBDocument = {
+      _id: `payment:${payment.id}`,
+      type: 'payment',
+      id: payment.id,
+      propertyId: payment.propertyId,
+      amount: payment.amount,
+      semester: payment.semester,
+      date: payment.date,
+      status: payment.status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (rev) {
+      doc._rev = rev;
+    }
+
+    if (payment.notes) {
+      doc.notes = payment.notes;
+    }
+
+    return doc;
+  }
+
+  // Transform PouchDB document to Incident
+  private docToIncident(doc: PouchDBDocument): Incident {
+    return {
+      id: doc.id || doc._id.replace('incident:', ''),
+      description: doc.description,
+      dateReported: doc.dateReported,
+      dateResolved: doc.dateResolved,
+      status: doc.status,
+      notes: doc.notes
+    };
+  }
+
+  // Transform Incident to PouchDB document
+  private incidentToDoc(incident: Incident, rev?: string): PouchDBDocument {
+    const doc: PouchDBDocument = {
+      _id: `incident:${incident.id}`,
+      type: 'incident',
+      id: incident.id,
+      description: incident.description,
+      dateReported: incident.dateReported,
+      status: incident.status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (rev) {
+      doc._rev = rev;
+    }
+
+    if (incident.dateResolved) {
+      doc.dateResolved = incident.dateResolved;
+    }
+
+    if (incident.notes) {
+      doc.notes = incident.notes;
+    }
+
+    return doc;
+  }
 
   // Properties
   async saveProperty(property: Property): Promise<Property> {
-    const properties = await this.getProperties();
-    const index = properties.findIndex(p => p.id === property.id);
-    
-    if (index >= 0) {
-      properties[index] = property;
-    } else {
-      properties.push(property);
+    try {
+      const docId = `property:${property.id}`;
+      let existingDoc: PouchDBDocument | null = null;
+
+      try {
+        existingDoc = await this.db.get(docId) as PouchDBDocument;
+      } catch (error: any) {
+        if (error.status !== 404) throw error;
+      }
+
+      const doc = this.propertyToDoc(property, existingDoc?._rev);
+      await this.db.put(doc);
+      return property;
+    } catch (error) {
+      console.error('Error saving property:', error);
+      throw error;
     }
-    
-    this.saveProperties(properties);
-    return property;
   }
 
   async getProperties(): Promise<Property[]> {
-    const data = localStorage.getItem(this.PROPERTIES_KEY);
-    return data ? JSON.parse(data) : [];
+    try {
+      const result = await this.db.allDocs({
+        include_docs: true,
+        startkey: 'property:',
+        endkey: 'property:\ufff0'
+      });
+
+      return result.rows
+        .map(row => row.doc as PouchDBDocument)
+        .filter(doc => doc.type === 'property')
+        .map(doc => this.docToProperty(doc));
+    } catch (error) {
+      console.error('Error getting properties:', error);
+      return [];
+    }
   }
 
   async getProperty(id: string): Promise<Property | null> {
-    const properties = await this.getProperties();
-    return properties.find(p => p.id === id) || null;
+    try {
+      const doc = await this.db.get(`property:${id}`) as PouchDBDocument;
+      return this.docToProperty(doc);
+    } catch (error: any) {
+      if (error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async deleteProperty(id: string): Promise<void> {
-    const properties = await this.getProperties();
-    const filtered = properties.filter(p => p.id !== id);
-    this.saveProperties(filtered);
-  }
-
-  private saveProperties(properties: Property[]): void {
-    localStorage.setItem(this.PROPERTIES_KEY, JSON.stringify(properties));
+    try {
+      const doc = await this.db.get(`property:${id}`) as PouchDBDocument;
+      await this.db.remove(doc);
+    } catch (error: any) {
+      if (error.status !== 404) {
+        throw error;
+      }
+    }
   }
 
   // Payments
   async savePayment(payment: Payment): Promise<Payment> {
-    const payments = await this.getPayments();
-    const index = payments.findIndex(p => p.id === payment.id);
-    
-    if (index >= 0) {
-      payments[index] = payment;
-    } else {
-      payments.push(payment);
+    try {
+      const docId = `payment:${payment.id}`;
+      let existingDoc: PouchDBDocument | null = null;
+
+      try {
+        existingDoc = await this.db.get(docId) as PouchDBDocument;
+      } catch (error: any) {
+        if (error.status !== 404) throw error;
+      }
+
+      const doc = this.paymentToDoc(payment, existingDoc?._rev);
+      await this.db.put(doc);
+      return payment;
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      throw error;
     }
-    
-    this.savePayments(payments);
-    return payment;
   }
 
   async getPayments(): Promise<Payment[]> {
-    const data = localStorage.getItem(this.PAYMENTS_KEY);
-    return data ? JSON.parse(data) : [];
+    try {
+      const result = await this.db.allDocs({
+        include_docs: true,
+        startkey: 'payment:',
+        endkey: 'payment:\ufff0'
+      });
+
+      return result.rows
+        .map(row => row.doc as PouchDBDocument)
+        .filter(doc => doc.type === 'payment')
+        .map(doc => this.docToPayment(doc));
+    } catch (error) {
+      console.error('Error getting payments:', error);
+      return [];
+    }
   }
 
   async getPaymentsByProperty(propertyId: string): Promise<Payment[]> {
@@ -91,32 +237,43 @@ class DatabaseService {
     return payments.filter(p => p.propertyId === propertyId);
   }
 
-  private savePayments(payments: Payment[]): void {
-    localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
-  }
-
   // Incidents
   async saveIncident(incident: Incident): Promise<Incident> {
-    const incidents = await this.getIncidents();
-    const index = incidents.findIndex(i => i.id === incident.id);
-    
-    if (index >= 0) {
-      incidents[index] = incident;
-    } else {
-      incidents.push(incident);
+    try {
+      const docId = `incident:${incident.id}`;
+      let existingDoc: PouchDBDocument | null = null;
+
+      try {
+        existingDoc = await this.db.get(docId) as PouchDBDocument;
+      } catch (error: any) {
+        if (error.status !== 404) throw error;
+      }
+
+      const doc = this.incidentToDoc(incident, existingDoc?._rev);
+      await this.db.put(doc);
+      return incident;
+    } catch (error) {
+      console.error('Error saving incident:', error);
+      throw error;
     }
-    
-    this.saveIncidents(incidents);
-    return incident;
   }
 
   async getIncidents(): Promise<Incident[]> {
-    const data = localStorage.getItem(this.INCIDENTS_KEY);
-    return data ? JSON.parse(data) : [];
-  }
+    try {
+      const result = await this.db.allDocs({
+        include_docs: true,
+        startkey: 'incident:',
+        endkey: 'incident:\ufff0'
+      });
 
-  private saveIncidents(incidents: Incident[]): void {
-    localStorage.setItem(this.INCIDENTS_KEY, JSON.stringify(incidents));
+      return result.rows
+        .map(row => row.doc as PouchDBDocument)
+        .filter(doc => doc.type === 'incident')
+        .map(doc => this.docToIncident(doc));
+    } catch (error) {
+      console.error('Error getting incidents:', error);
+      return [];
+    }
   }
 
   // Backup & Restore
@@ -129,9 +286,25 @@ class DatabaseService {
   }
 
   async importAll(data: { properties: Property[]; payments: Payment[]; incidents: Incident[] }): Promise<void> {
-    this.saveProperties(data.properties);
-    this.savePayments(data.payments);
-    this.saveIncidents(data.incidents);
+    // Save properties
+    for (const property of data.properties) {
+      await this.saveProperty(property);
+    }
+
+    // Save payments
+    for (const payment of data.payments) {
+      await this.savePayment(payment);
+    }
+
+    // Save incidents
+    for (const incident of data.incidents) {
+      await this.saveIncident(incident);
+    }
+  }
+
+  // Get PouchDB instance for sync
+  getPouchDB(): PouchDB.Database {
+    return this.db;
   }
 }
 

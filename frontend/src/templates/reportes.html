@@ -1,32 +1,64 @@
 <div>
-  <h2 class="text-2xl font-bold text-slate-800 mb-6">Reporte General</h2>
+  <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+    <h2 class="text-2xl font-bold text-slate-800">Dashboard de Reportes</h2>
+    <button id="export-pdf-btn" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded font-medium bg-slate-600 text-white hover:bg-slate-700 shadow-sm">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Exportar PDF
+    </button>
+  </div>
   
+  <!-- KPI Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     <div class="bg-white border-b-4 border-b-slate-600 p-4 rounded shadow-sm">
       <p class="text-slate-500 text-sm font-bold uppercase">Total Predios</p>
       <p class="text-4xl font-bold text-slate-800 mt-2">{{totalProperties}}</p>
+      <p class="text-xs text-slate-400 mt-1">{{activeProperties}} activos</p>
     </div>
     <div class="bg-white border-b-4 border-b-green-500 p-4 rounded shadow-sm">
       <p class="text-slate-500 text-sm font-bold uppercase">Recaudado ({{currentSemester}})</p>
-      <p class="text-4xl font-bold text-green-700 mt-2">${{totalCollected}}</p>
+      <p class="text-4xl font-bold text-green-700 mt-2">${{currentSemesterRevenue}}</p>
+      <p class="text-xs text-slate-400 mt-1">{{paymentRate}}% pagado</p>
     </div>
     <div class="bg-white border-b-4 border-b-upb-red p-4 rounded shadow-sm">
       <p class="text-slate-500 text-sm font-bold uppercase">En Mora</p>
-      <p class="text-4xl font-bold text-upb-red mt-2">{{lateCount}}</p>
+      <p class="text-4xl font-bold text-upb-red mt-2">{{latePayments}}</p>
+      <p class="text-xs text-slate-400 mt-1">pagos pendientes</p>
     </div>
     <div class="bg-white border-b-4 border-b-amber-400 p-4 rounded shadow-sm">
       <p class="text-slate-500 text-sm font-bold uppercase">Incidencias Activas</p>
       <p class="text-4xl font-bold text-amber-600 mt-2">{{openIncidents}}</p>
+      <p class="text-xs text-slate-400 mt-1">sin resolver</p>
     </div>
   </div>
 
-  <div class="bg-white border-l-4 border-l-upb-red border-y border-r border-slate-200 rounded shadow-sm p-4 mb-4">
-    <h3 class="text-lg font-bold text-upb-dark mb-3 border-b border-slate-100 pb-2">Estado de Pagos: {{currentSemester}}</h3>
-    <div class="h-64 w-full flex flex-col justify-center gap-4" id="chart-container">
-      {{chartBars}}
+  <!-- Chart: Payments by Semester (Bar Chart) -->
+  <div class="bg-white border-l-4 border-l-upb-red border-y border-r border-slate-200 rounded shadow-sm p-6 mb-6">
+    <h3 class="text-lg font-bold text-upb-dark mb-4">Recaudo por Semestre</h3>
+    <div class="h-64">
+      <canvas id="payments-chart"></canvas>
     </div>
-    <div class="mt-4 text-center text-slate-500 text-sm">
-      Resumen visual del comportamiento de pago de la comunidad.
+  </div>
+
+  <!-- Charts Row: Properties Status (Pie) and Incidents Trend (Line) -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Properties by Status (Pie Chart) -->
+    <div class="bg-white border-l-4 border-l-green-500 border-y border-r border-slate-200 rounded shadow-sm p-6">
+      <h3 class="text-lg font-bold text-upb-dark mb-4">Estado de Predios</h3>
+      <div class="h-64">
+        <canvas id="properties-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Incidents by Month (Line Chart) -->
+    <div class="bg-white border-l-4 border-l-amber-400 border-y border-r border-slate-200 rounded shadow-sm p-6">
+      <h3 class="text-lg font-bold text-upb-dark mb-4">Tendencia de Incidencias</h3>
+      <div class="h-64">
+        <canvas id="incidents-chart"></canvas>
+      </div>
     </div>
   </div>
   
@@ -34,4 +66,3 @@
     <strong>Nota:</strong> Este reporte refleja la información almacenada actualmente en este dispositivo.
   </div>
 </div>
-

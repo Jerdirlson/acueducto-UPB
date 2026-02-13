@@ -2,6 +2,7 @@
 // Usa templates HTML separados para mantener la arquitectura en capas
 import { Property, ServiceStatus } from '../types';
 import { TemplateService } from './services/templateService';
+import { PdfService } from './services/pdfService';
 
 export async function renderProperties(
   container: HTMLElement,
@@ -17,6 +18,16 @@ export async function renderProperties(
     status: ServiceStatus.ACTIVE,
     notes: ''
   };
+
+  // Filter state
+  let searchQuery = '';
+  let statusFilter: string | null = null;
+  let debounceTimer: number | null = null;
+  
+  // Pagination state
+  let currentPage = 1;
+  const itemsPerPage = 20;
+  let totalItems = 0;
 
   function getStatusColor(status: ServiceStatus): string {
     switch (status) {
@@ -109,23 +120,95 @@ export async function renderProperties(
     renderForm();
   }
 
+  function filterProperties(items: Property[]): Property[] {
+    let filtered = [...items];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(prop =>
+        prop.ownerName.toLowerCase().includes(query) ||
+        prop.number.toLowerCase().includes(query) ||
+        (prop.notes && prop.notes.toLowerCase().includes(query))
+      );
+    }
+
+    // Status filter
+    if (statusFilter && statusFilter !== 'all') {
+      filtered = filtered.filter(prop => prop.status === statusFilter);
+    }
+
+    return filtered;
+  }
+
+  function updateFilterChips() {
+    const chipsContainer = container.querySelector('#filter-chips');
+    const clearBtn = container.querySelector('#clear-filters-btn');
+    if (!chipsContainer) return;
+
+    const activeFilters: string[] = [];
+    if (searchQuery.trim()) {
+      activeFilters.push(`Búsqueda: "${searchQuery}"`);
+    }
+    if (statusFilter && statusFilter !== 'all') {
+      activeFilters.push(`Estado: ${statusFilter}`);
+    }
+
+    if (activeFilters.length > 0) {
+      chipsContainer.innerHTML = activeFilters.map(filter => `
+        <span class="inline-flex items-center gap-1 px-3 py-1 bg-upb-red/10 text-upb-red rounded-full text-sm font-medium">
+          ${filter}
+        </span>
+      `).join('');
+      if (clearBtn) {
+        clearBtn.classList.remove('hidden');
+      }
+    } else {
+      chipsContainer.innerHTML = '';
+      if (clearBtn) {
+        clearBtn.classList.add('hidden');
+      }
+    }
+  }
+
   async function renderList() {
     try {
       const listTemplate = await TemplateService.loadTemplate('templates/predios-list.html');
       const itemTemplate = await TemplateService.loadTemplate('templates/predios-item.html');
+      const searchBarTemplate = await TemplateService.loadTemplate('templates/search-bar.html');
 
       container.innerHTML = listTemplate;
+
+      // Inject search bar
+      const searchSection = container.querySelector('#search-filters-section');
+      if (searchSection) {
+        searchSection.innerHTML = searchBarTemplate;
+      }
 
       const listContainer = container.querySelector('#properties-list');
       if (!listContainer) return;
 
-      if (properties.length === 0) {
+      // Filter properties
+      const filteredProperties = filterProperties(properties);
+      totalItems = filteredProperties.length;
+      
+      // Calculate pagination
+      const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+      
+      const start = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+      const end = Math.min(currentPage * itemsPerPage, totalItems);
+      const paginatedProperties = filteredProperties.slice(start - 1, end);
+
+      if (paginatedProperties.length === 0) {
         const emptyTemplate = await TemplateService.loadTemplate('templates/empty-state.html');
-        listContainer.innerHTML = TemplateService.injectData(emptyTemplate, {
-          message: 'No hay predios registrados.'
-        });
+        const message = properties.length === 0
+          ? 'No hay predios registrados.'
+          : 'No se encontraron predios con los filtros aplicados.';
+        listContainer.innerHTML = TemplateService.injectData(emptyTemplate, { message });
       } else {
-        const itemsHtml = properties.map(prop => {
+        const itemsHtml = paginatedProperties.map(prop => {
           return TemplateService.injectData(itemTemplate, {
             id: prop.id,
             number: prop.number,
@@ -138,6 +221,117 @@ export async function renderProperties(
         listContainer.innerHTML = itemsHtml;
       }
 
+      // Render pagination
+      if (totalItems > itemsPerPage) {
+        const paginationTemplate = await TemplateService.loadTemplate('templates/pagination.html');
+        const paginationHtml = TemplateService.injectData(paginationTemplate, {
+          start: start.toString(),
+          end: end.toString(),
+          total: totalItems.toString(),
+          currentPage: currentPage.toString(),
+          totalPages: totalPages.toString(),
+          prevDisabled: currentPage === 1 ? 'disabled' : '',
+          nextDisabled: currentPage === totalPages ? 'disabled' : ''
+        });
+        
+        const paginationContainer = document.createElement('div');
+        paginationContainer.id = 'pagination-container';
+        paginationContainer.innerHTML = paginationHtml;
+        listContainer.parentElement?.appendChild(paginationContainer);
+
+        // Setup pagination controls
+        const prevBtn = container.querySelector('#pagination-prev');
+        const nextBtn = container.querySelector('#pagination-next');
+        const pageInput = container.querySelector('#pagination-page-input') as HTMLInputElement;
+
+        prevBtn?.addEventListener('click', () => {
+          if (currentPage > 1) {
+            currentPage--;
+            renderList();
+          }
+        });
+
+        nextBtn?.addEventListener('click', () => {
+          if (currentPage < totalPages) {
+            currentPage++;
+            renderList();
+          }
+        });
+
+        pageInput?.addEventListener('change', (e) => {
+          const page = parseInt((e.target as HTMLInputElement).value);
+          if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            renderList();
+          } else {
+            (e.target as HTMLInputElement).value = currentPage.toString();
+          }
+        });
+      } else {
+        // Remove pagination if exists
+        const existingPagination = container.querySelector('#pagination-container');
+        existingPagination?.remove();
+      }
+
+      // Update filter chips
+      updateFilterChips();
+
+      // Setup search input with debounce
+      const searchInput = container.querySelector('#search-input') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.value = searchQuery;
+        searchInput.addEventListener('input', (e) => {
+          const value = (e.target as HTMLInputElement).value;
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = window.setTimeout(() => {
+            searchQuery = value;
+            currentPage = 1; // Reset to first page when search changes
+            renderList();
+          }, 300);
+        });
+      }
+
+      // Setup clear filters button
+      const clearBtn = container.querySelector('#clear-filters-btn');
+      clearBtn?.addEventListener('click', () => {
+        searchQuery = '';
+        statusFilter = null;
+        currentPage = 1; // Reset to first page
+        const searchInput = container.querySelector('#search-input') as HTMLInputElement;
+        if (searchInput) searchInput.value = '';
+        container.querySelectorAll('.filter-status-btn').forEach(btn => {
+          btn.classList.remove('active', 'bg-upb-red', 'text-white', 'border-upb-red');
+          btn.classList.add('border-slate-300', 'text-slate-700');
+        });
+        const allBtn = container.querySelector('[data-filter-status="all"]');
+        if (allBtn) {
+          allBtn.classList.add('active', 'bg-upb-red', 'text-white', 'border-upb-red');
+          allBtn.classList.remove('border-slate-300', 'text-slate-700');
+        }
+        renderList();
+      });
+
+      // Setup status filter buttons
+      container.querySelectorAll('.filter-status-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const status = (btn as HTMLElement).dataset.filterStatus || null;
+          statusFilter = status === 'all' ? null : status;
+          
+          // Update button states
+          container.querySelectorAll('.filter-status-btn').forEach(b => {
+            b.classList.remove('active', 'bg-upb-red', 'text-white', 'border-upb-red');
+            b.classList.add('border-slate-300', 'text-slate-700');
+          });
+          btn.classList.add('active', 'bg-upb-red', 'text-white', 'border-upb-red');
+          btn.classList.remove('border-slate-300', 'text-slate-700');
+          
+          currentPage = 1; // Reset to first page when filter changes
+          renderList();
+        });
+      });
+
       // Configurar event listeners
       const newBtn = container.querySelector('#new-property-btn');
       newBtn?.addEventListener('click', () => {
@@ -145,6 +339,16 @@ export async function renderProperties(
         editingId = null;
         formData = { ownerName: '', number: '', status: ServiceStatus.ACTIVE, notes: '' };
         renderForm();
+      });
+
+      // Export PDF button
+      const exportPdfBtn = container.querySelector('#export-pdf-btn');
+      exportPdfBtn?.addEventListener('click', () => {
+        const filtered = filterProperties(properties);
+        const filters: string[] = [];
+        if (searchQuery.trim()) filters.push(`Búsqueda: "${searchQuery}"`);
+        if (statusFilter && statusFilter !== 'all') filters.push(`Estado: ${statusFilter}`);
+        PdfService.generatePropertiesPDF(filtered, filters.length > 0 ? filters.join(', ') : undefined);
       });
 
       container.querySelectorAll('.edit-property-btn').forEach(btn => {

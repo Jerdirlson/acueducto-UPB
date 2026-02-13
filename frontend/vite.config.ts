@@ -2,23 +2,36 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Check if running in Electron context
+const isElectron = process.env.ELECTRON === 'true';
+
 export default defineConfig({
+  // Use relative base for Electron
+  base: isElectron ? './' : '/',
+  
   define: {
     global: 'globalThis',
     'process.env': {},
+    'process.browser': true,
   },
+  
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      'pouchdb': 'pouchdb/dist/pouchdb.js'
     }
   },
+  
   optimizeDeps: {
+    include: ['pouchdb', 'chart.js', 'jspdf'],
+    exclude: [],
     esbuildOptions: {
       define: {
         global: 'globalThis'
       }
     }
   },
+  
   server: {
     port: 5173,
     host: '0.0.0.0',
@@ -29,6 +42,7 @@ export default defineConfig({
       }
     }
   },
+  
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
@@ -45,13 +59,19 @@ export default defineConfig({
       }
     })
   ],
+  
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Target modern browsers for Electron
+    target: isElectron ? 'esnext' : 'es2015',
     rollupOptions: {
       output: {
         manualChunks: undefined
       }
-    }
-  }
+    },
+    copyPublicDir: true
+  },
+  
+  publicDir: 'public'
 });
