@@ -1,9 +1,13 @@
 // Capa de Servicios - Lógica de Negocio para Pagos
 import { db } from '../db';
 import { Payment as PaymentType, PaymentStatus } from '../../types';
+import { DatabaseHealthService } from './databaseHealthService';
 
 export class PaymentService {
   static async getAll(): Promise<PaymentType[]> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const payments = await db.getPayments();
     return payments.map(p => ({
       id: p.id,
@@ -16,20 +20,10 @@ export class PaymentService {
     }));
   }
 
-  static async getByProperty(propertyId: string): Promise<PaymentType[]> {
-    const payments = await db.getPaymentsByProperty(propertyId);
-    return payments.map(p => ({
-      id: p.id,
-      propertyId: p.propertyId,
-      amount: p.amount,
-      semester: p.semester,
-      date: p.date,
-      status: p.status as PaymentStatus,
-      notes: p.notes
-    }));
-  }
-
   static async create(payment: PaymentType): Promise<PaymentType> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const saved = await db.savePayment({
       id: payment.id,
       propertyId: payment.propertyId,

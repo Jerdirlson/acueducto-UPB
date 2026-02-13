@@ -5,12 +5,17 @@ import { renderPayments } from './pagos';
 import { renderIncidents } from './incidencias';
 import { renderReports } from './reportes';
 import { renderBackup } from './respaldo';
-import { renderLogin } from './login';
+import { renderLogin, initializeAuth, logout as authLogout } from './login';
 import { TemplateService } from './services/templateService';
 import { PropertyService } from './services/propertyService';
 import { PaymentService } from './services/paymentService';
 import { IncidentService } from './services/incidentService';
+import { AuthService } from './services/authService';
 import { ServiceStatus } from '../types';
+import { migrationService } from './services/migrationService';
+import { syncService } from './services/syncService';
+import { ToastService } from './services/toastService';
+import { DatabaseHealthService, DatabaseStatus, DatabaseHealth } from './services/databaseHealthService';
 
 // Mock Data for initial seed
 const MOCK_PROPERTIES = [
@@ -30,11 +35,11 @@ let incidents: any[] = [];
 
 export async function initApp() {
   console.log('🔵 Inicializando aplicación...');
-  
+
   // Verificar que los elementos del DOM existan
   const contentArea = document.getElementById('content-area');
   const appLayout = document.getElementById('app-layout');
-  
+
   if (!contentArea) {
     console.error('❌ Elemento content-area no encontrado en el DOM');
     return;
@@ -43,15 +48,12 @@ export async function initApp() {
     console.error('❌ Elemento app-layout no encontrado en el DOM');
     return;
   }
-  
+
   console.log('✅ Elementos del DOM verificados');
-  
-  // Check Auth
-  const authStatus = localStorage.getItem('acueducto_auth');
-  if (authStatus === 'true') {
-    isAuthenticated = true;
-    console.log('✅ Usuario autenticado');
-  }
+
+  // Check Auth con JWT
+  console.log('🔐 Verificando autenticación...');
+  isAuthenticated = await initializeAuth();
 
   if (!isAuthenticated) {
     console.log('🔒 Mostrando login');
@@ -59,10 +61,50 @@ export async function initApp() {
     return;
   }
 
+  console.log('✅ Usuario autenticado:', AuthService.getCurrentUser()?.username);
+
+  // Run migration if needed
+  console.log('🔄 Verificando migración...');
+  try {
+    if (await migrationService.needsMigration()) {
+      console.log('📦 Ejecutando migración de localStorage a PouchDB...');
+      const migrationResult = await migrationService.migrate();
+      if (migrationResult.success) {
+        console.log('✅ Migración completada:', migrationResult.migrated);
+      } else {
+        console.warn('⚠️ Migración completada con errores:', migrationResult.error);
+      }
+    } else {
+      console.log('✅ No se requiere migración');
+    }
+  } catch (error) {
+    console.error('❌ Error durante migración:', error);
+  }
+
   // Load Data
   console.log('📦 Cargando datos...');
   await loadData();
   console.log('✅ Datos cargados:', { properties: properties.length, payments: payments.length, incidents: incidents.length });
+
+  // Start sync
+  console.log('🔄 Iniciando sincronización...');
+  try {
+    await syncService.startSync();
+    console.log('✅ Sincronización iniciada');
+
+    // Listen to sync status changes
+    syncService.onStatusChange((status) => {
+      updateSyncStatus(status);
+    });
+  } catch (error) {
+    console.error('❌ Error iniciando sincronización:', error);
+  }
+
+  // Start CouchDB status polling and listen for changes
+  syncService.startCouchDBPolling();
+  syncService.onCouchDBStatusChange((connected) => {
+    handleCouchDBStatusChange(connected);
+  });
   
   // Setup UI
   console.log('🎨 Configurando UI...');
@@ -109,24 +151,55 @@ async function loadData() {
 function setupLayout() {
   const loginView = document.getElementById('login-view');
   const appLayout = document.getElementById('app-layout');
-  
+
   if (loginView) loginView.classList.add('view-hidden');
   if (appLayout) appLayout.classList.remove('view-hidden');
+
+  // Actualizar información del usuario en el sidebar
+  updateUserInfo();
+}
+
+function updateUserInfo() {
+  const user = AuthService.getCurrentUser();
+  if (!user) return;
+
+  const userInitial = document.getElementById('user-initial');
+  const userName = document.getElementById('user-name');
+  const userRole = document.getElementById('user-role');
+
+  if (userInitial) {
+    userInitial.textContent = user.fullName?.charAt(0).toUpperCase() || user.username.charAt(0).toUpperCase();
+  }
+  if (userName) {
+    userName.textContent = user.fullName || user.username;
+  }
+  if (userRole) {
+    const roleLabels: Record<string, string> = {
+      admin: 'Administrador',
+      operator: 'Operador',
+      viewer: 'Visualizador'
+    };
+    userRole.textContent = roleLabels[user.role] || user.role;
+  }
 }
 
 function setupNavigation() {
   const navItems = document.getElementById('nav-items');
   if (!navItems) return;
 
+  // Configuración de navegación con permisos requeridos
   const navConfig = [
-    { view: 'PROPERTIES', label: 'Predios', icon: 'home' },
-    { view: 'PAYMENTS', label: 'Pagos', icon: 'banknote' },
-    { view: 'INCIDENTS', label: 'Incidencias', icon: 'alert' },
-    { view: 'REPORTS', label: 'Reportes', icon: 'chart' },
-    { view: 'BACKUP', label: 'Respaldo', icon: 'save' },
+    { view: 'PROPERTIES', label: 'Predios', icon: 'home', permission: 'properties:read' },
+    { view: 'PAYMENTS', label: 'Pagos', icon: 'banknote', permission: 'payments:read' },
+    { view: 'INCIDENTS', label: 'Incidencias', icon: 'alert', permission: 'incidents:read' },
+    { view: 'REPORTS', label: 'Reportes', icon: 'chart', permission: 'reports:read' },
+    { view: 'BACKUP', label: 'Respaldo', icon: 'save', permission: 'backup:read' },
   ];
 
-  navItems.innerHTML = navConfig.map(item => {
+  // Filtrar elementos según permisos del usuario
+  const visibleItems = navConfig.filter(item => AuthService.hasPermission(item.permission));
+
+  navItems.innerHTML = visibleItems.map(item => {
     const isActive = currentView === item.view;
     return `
       <button
@@ -204,14 +277,66 @@ function setupEventListeners() {
   });
 
   // Online/Offline status
-  window.addEventListener('online', updateOnlineStatus);
-  window.addEventListener('offline', updateOnlineStatus);
+  window.addEventListener('online', () => {
+    updateOnlineStatus();
+    updateSyncStatus(syncService.getStatus());
+  });
+  window.addEventListener('offline', () => {
+    updateOnlineStatus();
+    updateSyncStatus(syncService.getStatus());
+  });
   updateOnlineStatus();
+  updateSyncStatus(syncService.getStatus());
+
+  // Database health status listener
+  DatabaseHealthService.onStatusChange((status, health) => {
+    updateDatabaseStatus(status, health);
+  });
+  
+  // Initial health check
+  DatabaseHealthService.checkHealth(true);
 
   // Hash navigation
   window.addEventListener('hashchange', async () => {
     const view = getViewFromHash();
     if (view) await navigateToView(view);
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+N or Cmd+N - New item
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      const currentView = getViewFromHash();
+      if (currentView === 'PROPERTIES') {
+        const newBtn = document.querySelector('#new-property-btn') as HTMLElement;
+        newBtn?.click();
+      } else if (currentView === 'PAYMENTS') {
+        const newBtn = document.querySelector('#new-payment-btn') as HTMLElement;
+        newBtn?.click();
+      } else if (currentView === 'INCIDENTS') {
+        const newBtn = document.querySelector('#new-incident-btn') as HTMLElement;
+        newBtn?.click();
+      }
+    }
+
+    // Ctrl+F or Cmd+F - Focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      const searchInput = document.querySelector('#search-input') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
+    }
+
+    // Escape - Close modals/cancel forms
+    if (e.key === 'Escape') {
+      const cancelBtns = document.querySelectorAll('#cancel-btn, #cancel-payment-btn, #cancel-incident-btn');
+      cancelBtns.forEach(btn => {
+        (btn as HTMLElement).click();
+      });
+    }
   });
 }
 
@@ -247,6 +372,103 @@ function updateOnlineStatus() {
       statusText.textContent = 'Modo Offline';
       statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Modo Offline';
     }
+  }
+}
+
+function updateSyncStatus(syncStatus: { active: boolean; syncing: boolean; error?: string }) {
+  // Update database health when sync status changes
+  if (syncStatus.syncing) {
+    const statusBar = document.getElementById('status-bar');
+    const statusText = document.getElementById('status-text');
+    
+    if (statusBar && statusText) {
+      statusBar.className = 'p-4 text-center text-xs font-semibold bg-blue-900 text-blue-200';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Sincronizando...';
+    }
+  } else {
+    // Trigger a health check when sync completes
+    DatabaseHealthService.checkHealth(true);
+  }
+}
+
+function updateDatabaseStatus(status: DatabaseStatus, health: DatabaseHealth) {
+  const statusBar = document.getElementById('status-bar');
+  const statusText = document.getElementById('status-text');
+
+  if (!statusBar || !statusText) return;
+
+  // Priority: database status over network status
+  if (status === 'disconnected') {
+    statusBar.className = 'p-4 text-center text-xs font-semibold bg-red-900 text-red-200';
+    const errorMsg = health.error ? ` - ${health.error}` : '';
+    statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Base de Datos Desconectada${errorMsg}`;
+  } else if (status === 'syncing') {
+    statusBar.className = 'p-4 text-center text-xs font-semibold bg-blue-900 text-blue-200';
+    statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Sincronizando Base de Datos...';
+  } else if (status === 'connected') {
+    statusBar.className = 'p-4 text-center text-xs font-semibold bg-green-900 text-green-200';
+    const latencyMsg = health.latency ? ` (${health.latency}ms)` : '';
+    statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500"></span> Base de Datos Conectada${latencyMsg}`;
+  }
+}
+
+let bannerHideTimeout: number | null = null;
+
+function handleCouchDBStatusChange(connected: boolean): void {
+  const banner = document.getElementById('connection-banner');
+  const statusBar = document.getElementById('status-bar');
+  const statusText = document.getElementById('status-text');
+
+  if (!banner) return;
+
+  if (bannerHideTimeout) {
+    clearTimeout(bannerHideTimeout);
+    bannerHideTimeout = null;
+  }
+
+  if (!connected) {
+    // Disconnected
+    banner.className = 'connection-banner banner-disconnected';
+    banner.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span>Sin conexion con la base de datos externa. Los cambios se guardan localmente y se sincronizaran automaticamente al reconectar.</span>
+    `;
+    ToastService.warning('Se perdio la conexion con la base de datos externa', 5000);
+
+    // Update status bar
+    if (statusBar && statusText) {
+      statusBar.className = 'p-4 text-center text-xs font-semibold bg-amber-900 text-amber-200';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Base de datos desconectada';
+    }
+  } else {
+    // Reconnected
+    banner.className = 'connection-banner banner-reconnected';
+    banner.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span>Conexion restaurada. Sincronizando cambios...</span>
+    `;
+    ToastService.success('Conexion con la base de datos restaurada');
+
+    // Update status bar
+    if (statusBar && statusText) {
+      statusBar.className = 'p-4 text-center text-xs font-semibold bg-zinc-900 text-green-400';
+      statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500"></span> Sincronizado';
+    }
+
+    // Hide banner after 3 seconds
+    bannerHideTimeout = window.setTimeout(() => {
+      banner.classList.add('banner-hiding');
+      setTimeout(() => {
+        banner.className = 'connection-banner view-hidden';
+      }, 300);
+    }, 3000);
   }
 }
 
@@ -337,11 +559,13 @@ async function handleAddProperty(p: any) {
     const saved = await PropertyService.create(p);
     properties.push(saved);
     await refreshData();
+    ToastService.success('Predio creado exitosamente');
     if (currentView === 'PROPERTIES') {
       navigateToView('PROPERTIES');
     }
   } catch (e) {
     console.error('Error adding property:', e);
+    ToastService.error('Error al crear el predio');
   }
 }
 
@@ -350,11 +574,13 @@ async function handleUpdateProperty(p: any) {
     const saved = await PropertyService.update(p);
     properties = properties.map(item => item.id === p.id ? saved : item);
     await refreshData();
+    ToastService.success('Predio actualizado exitosamente');
     if (currentView === 'PROPERTIES') {
       navigateToView('PROPERTIES');
     }
   } catch (e) {
     console.error('Error updating property:', e);
+    ToastService.error('Error al actualizar el predio');
   }
 }
 
@@ -363,11 +589,13 @@ async function handleAddPayment(p: any) {
     const saved = await PaymentService.create(p);
     payments.unshift(saved);
     await refreshData();
+    ToastService.success('Pago registrado exitosamente');
     if (currentView === 'PAYMENTS') {
       navigateToView('PAYMENTS');
     }
   } catch (e) {
     console.error('Error adding payment:', e);
+    ToastService.error('Error al registrar el pago');
   }
 }
 
@@ -376,11 +604,13 @@ async function handleAddIncident(i: any) {
     const saved = await IncidentService.create(i);
     incidents.unshift(saved);
     await refreshData();
+    ToastService.success('Incidencia reportada exitosamente');
     if (currentView === 'INCIDENTS') {
       navigateToView('INCIDENTS');
     }
   } catch (e) {
     console.error('Error adding incident:', e);
+    ToastService.error('Error al reportar la incidencia');
   }
 }
 
@@ -389,11 +619,13 @@ async function handleUpdateIncident(i: any) {
     const saved = await IncidentService.update(i);
     incidents = incidents.map(item => item.id === i.id ? saved : item);
     await refreshData();
+    ToastService.success('Incidencia actualizada exitosamente');
     if (currentView === 'INCIDENTS') {
       navigateToView('INCIDENTS');
     }
   } catch (e) {
     console.error('Error updating incident:', e);
+    ToastService.error('Error al actualizar la incidencia');
   }
 }
 
@@ -409,19 +641,19 @@ async function refreshData() {
 }
 
 function handleLogout() {
-  localStorage.removeItem('acueducto_auth');
+  authLogout();
   isAuthenticated = false;
+  syncService.stopSync();
   showLogin();
 }
 
 async function showLogin() {
   const loginView = document.getElementById('login-view');
   const appLayout = document.getElementById('app-layout');
-  
+
   if (loginView) {
     loginView.classList.remove('view-hidden');
     await renderLogin(loginView, () => {
-      localStorage.setItem('acueducto_auth', 'true');
       isAuthenticated = true;
       initApp();
     });

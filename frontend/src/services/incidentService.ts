@@ -1,9 +1,13 @@
 // Capa de Servicios - Lógica de Negocio para Incidencias
 import { db } from '../db';
 import { Incident as IncidentType, IncidentStatus } from '../../types';
+import { DatabaseHealthService } from './databaseHealthService';
 
 export class IncidentService {
   static async getAll(): Promise<IncidentType[]> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const incidents = await db.getIncidents();
     return incidents.map(i => ({
       id: i.id,
@@ -16,6 +20,9 @@ export class IncidentService {
   }
 
   static async create(incident: IncidentType): Promise<IncidentType> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const saved = await db.saveIncident({
       id: incident.id,
       description: incident.description,
@@ -36,6 +43,9 @@ export class IncidentService {
   }
 
   static async update(incident: IncidentType): Promise<IncidentType> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const existing = await db.getIncidents();
     const found = existing.find(i => i.id === incident.id);
     

@@ -49,22 +49,38 @@
 
         <div class="flex-1 py-4 overflow-y-auto" id="nav-items"></div>
         
-        <div class="border-t border-zinc-800 p-2">
-          <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-4 text-left text-slate-400 hover:text-white hover:bg-zinc-800 font-medium transition-colors rounded">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span>Cerrar Sesión</span>
-          </button>
+        <div class="border-t border-zinc-800">
+          <!-- User Info -->
+          <div id="user-info" class="px-4 py-3 bg-zinc-900/50">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-upb-red flex items-center justify-center text-white text-sm font-bold">
+                <span id="user-initial">A</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p id="user-name" class="text-sm font-medium text-white truncate">Admin</p>
+                <p id="user-role" class="text-xs text-slate-400 capitalize">administrador</p>
+              </div>
+            </div>
+          </div>
+          <!-- Logout Button -->
+          <div class="p-2">
+            <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-400 hover:text-white hover:bg-zinc-800 font-medium transition-colors rounded">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Status Bar -->
-        <div id="status-bar" class="p-4 text-center text-xs font-semibold bg-zinc-900 text-green-400">
-          <span class="flex items-center justify-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-green-500"></span> <span id="status-text">Conectado</span>
-          </span>
+        <!-- Status Bar with Database Connection -->
+        <div id="status-bar" class="p-4 text-center text-xs font-semibold bg-zinc-900 text-slate-400 border-t border-zinc-800">
+          <div class="flex items-center justify-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-slate-500" id="status-indicator"></span>
+            <span id="status-text">Verificando conexión...</span>
+          </div>
         </div>
       </nav>
 
@@ -74,6 +90,7 @@
       <!-- Main Content -->
       <main class="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50">
         <div class="max-w-4xl mx-auto">
+          <div id="connection-banner" class="connection-banner view-hidden"></div>
           <div id="content-area"></div>
         </div>
       </main>

@@ -1,9 +1,13 @@
 // Capa de Servicios - Lógica de Negocio para Predios
 import { db } from '../db';
 import { Property as PropertyType, ServiceStatus } from '../../types';
+import { DatabaseHealthService } from './databaseHealthService';
 
 export class PropertyService {
   static async getAll(): Promise<PropertyType[]> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const properties = await db.getProperties();
     return properties.map(p => ({
       id: p.id,
@@ -28,6 +32,9 @@ export class PropertyService {
   }
 
   static async create(property: PropertyType): Promise<PropertyType> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const saved = await db.saveProperty({
       id: property.id,
       number: property.number,
@@ -46,6 +53,9 @@ export class PropertyService {
   }
 
   static async update(property: PropertyType): Promise<PropertyType> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     const existing = await db.getProperty(property.id);
     if (!existing) throw new Error('Property not found');
     
@@ -67,6 +77,9 @@ export class PropertyService {
   }
 
   static async delete(id: string): Promise<void> {
+    // Check database health before operation
+    await DatabaseHealthService.checkHealth();
+    
     await db.deleteProperty(id);
   }
 }
