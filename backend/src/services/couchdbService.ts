@@ -43,15 +43,15 @@ export class CouchDBService {
     if (this.healthCheckInterval) return;
 
     // Run immediately, then every 10 seconds
-    this.performHealthCheck();
+    this.runPeriodicHealthCheck();
     this.healthCheckInterval = setInterval(() => {
-      this.performHealthCheck();
+      this.runPeriodicHealthCheck();
     }, 10000);
 
     console.log('🔄 CouchDB health check started (every 10s)');
   }
 
-  private async performHealthCheck(): Promise<void> {
+  private async runPeriodicHealthCheck(): Promise<void> {
     try {
       await this.db.info();
       if (!this.isConnected) {
