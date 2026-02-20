@@ -1,7 +1,8 @@
 // Capa de Servicios - Comunicación con Backend API
 import { AuthService } from './authService';
 
-const API_BASE = typeof window !== 'undefined' && window.location.port === '5173'
+/** Base URL for API - use full URL when in Vite dev (port 5173), relative when same-origin (Electron) */
+export const API_BASE = typeof window !== 'undefined' && window.location.port === '5173'
   ? 'http://localhost:3000/api'
   : '/api';
 

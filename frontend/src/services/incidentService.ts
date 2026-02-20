@@ -22,18 +22,20 @@ export class IncidentService {
   static async create(incident: IncidentType): Promise<IncidentType> {
     // Check database health before operation
     await DatabaseHealthService.checkHealth();
-    
+
     const saved = await db.saveIncident({
       id: incident.id,
+      propertyId: incident.propertyId,
       description: incident.description,
       dateReported: incident.dateReported,
       dateResolved: incident.dateResolved,
       status: incident.status,
       notes: incident.notes
     });
-    
+
     return {
       id: saved.id,
+      propertyId: saved.propertyId,
       description: saved.description,
       dateReported: saved.dateReported,
       dateResolved: saved.dateResolved,
@@ -45,23 +47,25 @@ export class IncidentService {
   static async update(incident: IncidentType): Promise<IncidentType> {
     // Check database health before operation
     await DatabaseHealthService.checkHealth();
-    
+
     const existing = await db.getIncidents();
     const found = existing.find(i => i.id === incident.id);
-    
+
     if (!found) throw new Error('Incident not found');
-    
+
     const saved = await db.saveIncident({
       ...found,
+      propertyId: incident.propertyId,
       description: incident.description,
       dateReported: incident.dateReported,
       dateResolved: incident.dateResolved,
       status: incident.status,
       notes: incident.notes
     });
-    
+
     return {
       id: saved.id,
+      propertyId: saved.propertyId,
       description: saved.description,
       dateReported: saved.dateReported,
       dateResolved: saved.dateResolved,

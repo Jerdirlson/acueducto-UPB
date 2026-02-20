@@ -2,12 +2,13 @@
 import { db } from '../db';
 import { Payment as PaymentType, PaymentStatus } from '../../types';
 import { DatabaseHealthService } from './databaseHealthService';
+import { PropertyService } from './propertyService';
 
 export class PaymentService {
   static async getAll(): Promise<PaymentType[]> {
     // Check database health before operation
     await DatabaseHealthService.checkHealth();
-    
+
     const payments = await db.getPayments();
     return payments.map(p => ({
       id: p.id,
@@ -23,7 +24,13 @@ export class PaymentService {
   static async create(payment: PaymentType): Promise<PaymentType> {
     // Check database health before operation
     await DatabaseHealthService.checkHealth();
-    
+
+    // Validación referencial: el predio debe existir
+    const property = await PropertyService.getById(payment.propertyId);
+    if (!property) {
+      throw new Error(`El predio con id '${payment.propertyId}' no existe`);
+    }
+
     const saved = await db.savePayment({
       id: payment.id,
       propertyId: payment.propertyId,
@@ -33,7 +40,7 @@ export class PaymentService {
       status: payment.status,
       notes: payment.notes
     });
-    
+
     return {
       id: saved.id,
       propertyId: saved.propertyId,

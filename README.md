@@ -74,6 +74,34 @@ cd backend
 npm install
 ```
 
+## 🗄️ Configuración de CouchDB (Base de Datos)
+
+Para que la aplicación se conecte a la base de datos, sigue estos pasos:
+
+### 1. Instalar y ejecutar CouchDB
+- **Windows**: Descarga desde [couchdb.apache.org](https://couchdb.apache.org/) o usa Docker: `docker run -p 5984:5984 couchdb`
+- **Mac**: `brew install couchdb && brew services start couchdb`
+- **Linux**: `sudo apt install couchdb` (Ubuntu/Debian)
+
+### 2. Crear la base de datos y usuario admin
+```bash
+cd backend
+npm run init-couchdb
+```
+Este script crea la base de datos `acueducto`, los índices necesarios y el usuario admin por defecto.
+
+### 3. Verificar credenciales en `.env`
+```env
+COUCHDB_URL=http://localhost:5984
+COUCHDB_USER=admin
+COUCHDB_PASSWORD=tu_contraseña
+COUCHDB_DB_NAME=acueducto
+```
+
+### 4. Comprobar conexión
+- Abre http://localhost:5984 en el navegador para verificar que CouchDB está en ejecución
+- El indicador de conexión en la barra lateral de la app mostrará verde cuando está conectado
+
 ## ▶️ Ejecución
 
 ### Opción 1: Script automático (Windows)

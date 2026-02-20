@@ -1,5 +1,26 @@
 // Tipos compartidos para el backend
 
+// Estados de predios
+export enum ServiceStatus {
+  ACTIVE = 'Activo',
+  SUSPENDED = 'Suspendido',
+  INACTIVE = 'Inactivo'
+}
+
+// Estados de pagos
+export enum PaymentStatus {
+  PAID = 'Pagado',
+  PENDING = 'Pendiente',
+  LATE = 'En Mora'
+}
+
+// Estados de incidencias
+export enum IncidentStatus {
+  OPEN = 'Abierta',
+  IN_PROGRESS = 'En Proceso',
+  RESOLVED = 'Resuelta'
+}
+
 // Roles del sistema
 export type UserRole = 'admin' | 'operator' | 'viewer';
 
@@ -54,7 +75,7 @@ export interface Property {
   id: string;
   number: string;
   ownerName: string;
-  status: string;
+  status: ServiceStatus;
   notes?: string;
 }
 
@@ -64,16 +85,17 @@ export interface Payment {
   amount: number;
   semester: string;
   date: string;
-  status: string;
+  status: PaymentStatus;
   notes?: string;
 }
 
 export interface Incident {
   id: string;
+  propertyId?: string;
   description: string;
   dateReported: string;
   dateResolved?: string;
-  status: string;
+  status: IncidentStatus;
   notes?: string;
 }
 

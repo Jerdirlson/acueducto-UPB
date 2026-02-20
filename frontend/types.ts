@@ -36,6 +36,7 @@ export enum IncidentStatus {
 
 export interface Incident {
   id: string;
+  propertyId?: string;
   description: string;
   dateReported: string;
   dateResolved?: string;

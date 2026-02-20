@@ -1,5 +1,5 @@
 // Database Health Service - Monitor database connection status
-import { ApiService } from './api';
+import { API_BASE } from './api';
 
 export interface DatabaseHealth {
   connected: boolean;
@@ -31,7 +31,7 @@ export class DatabaseHealthService {
     }
 
     try {
-      const response = await fetch('/api/couchdb/health');
+      const response = await fetch(`${API_BASE}/couchdb/health`);
       const health: DatabaseHealth = await response.json();
       
       // Add cache expiration

@@ -133,8 +133,9 @@ function createWindow(port: number) {
   // Load the app from the backend server
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
 
-  // Show window when ready
+  // Show window maximized when ready
   mainWindow.once('ready-to-show', () => {
+    mainWindow?.maximize();
     mainWindow?.show();
   });
 

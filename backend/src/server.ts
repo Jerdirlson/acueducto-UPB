@@ -1,18 +1,26 @@
 // Servidor Principal - Punto de Entrada del Backend
 // IMPORTANTE: Cargar variables de entorno ANTES de cualquier otro import
+// dotenv/config se ejecuta como side-effect del import, garantizando que
+// process.env esté poblado antes de que otros módulos lean las variables.
 import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __serverDir = dirname(__filename);
+// Also try loading from backend/.env explicitly (for when CWD differs)
+dotenv.config({ path: path.join(__serverDir, '../.env') });
 
 import express, { Express } from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { dirname } from 'path';
+import { pathToFileURL } from 'url';
 import { existsSync } from 'fs';
 import apiRoutes from './routes/index.js';
 import { couchdbService } from './services/couchdbService.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = __serverDir;
 
 console.log('[Server] Initializing server module...');
 

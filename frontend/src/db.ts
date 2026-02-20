@@ -20,7 +20,7 @@ class DatabaseService {
   // Transform PouchDB document to Property
   private docToProperty(doc: PouchDBDocument): Property {
     return {
-      id: doc.id || doc._id.replace('property:', ''),
+      id: doc._id.replace('property:', ''),
       number: doc.number,
       ownerName: doc.ownerName,
       status: doc.status,
@@ -33,7 +33,6 @@ class DatabaseService {
     const doc: PouchDBDocument = {
       _id: `property:${property.id}`,
       type: 'property',
-      id: property.id,
       number: property.number,
       ownerName: property.ownerName,
       status: property.status,
@@ -55,7 +54,7 @@ class DatabaseService {
   // Transform PouchDB document to Payment
   private docToPayment(doc: PouchDBDocument): Payment {
     return {
-      id: doc.id || doc._id.replace('payment:', ''),
+      id: doc._id.replace('payment:', ''),
       propertyId: doc.propertyId,
       amount: doc.amount,
       semester: doc.semester,
@@ -70,7 +69,6 @@ class DatabaseService {
     const doc: PouchDBDocument = {
       _id: `payment:${payment.id}`,
       type: 'payment',
-      id: payment.id,
       propertyId: payment.propertyId,
       amount: payment.amount,
       semester: payment.semester,
@@ -94,7 +92,8 @@ class DatabaseService {
   // Transform PouchDB document to Incident
   private docToIncident(doc: PouchDBDocument): Incident {
     return {
-      id: doc.id || doc._id.replace('incident:', ''),
+      id: doc._id.replace('incident:', ''),
+      propertyId: doc.propertyId,
       description: doc.description,
       dateReported: doc.dateReported,
       dateResolved: doc.dateResolved,
@@ -108,7 +107,6 @@ class DatabaseService {
     const doc: PouchDBDocument = {
       _id: `incident:${incident.id}`,
       type: 'incident',
-      id: incident.id,
       description: incident.description,
       dateReported: incident.dateReported,
       status: incident.status,
@@ -118,6 +116,10 @@ class DatabaseService {
 
     if (rev) {
       doc._rev = rev;
+    }
+
+    if (incident.propertyId) {
+      doc.propertyId = incident.propertyId;
     }
 
     if (incident.dateResolved) {

@@ -1,7 +1,7 @@
 // Capa de Servicios - Lógica de Negocio para CouchDB
 import PouchDB from 'pouchdb';
 import PouchDBFind from 'pouchdb-find';
-import { Property, Payment, Incident } from '../types.js';
+import { Property, Payment, Incident, ServiceStatus, PaymentStatus, IncidentStatus } from '../types.js';
 
 // Registrar plugin find
 PouchDB.plugin(PouchDBFind);
@@ -200,10 +200,10 @@ export class CouchDBService {
   // Transform CouchDB document to Property
   private couchDocToProperty(doc: CouchDBDocument): Property {
     return {
-      id: doc.id || doc._id.replace('property:', ''),
+      id: doc._id.replace('property:', ''),
       number: doc.number,
       ownerName: doc.ownerName,
-      status: doc.status,
+      status: doc.status as ServiceStatus,
       notes: doc.notes
     };
   }
@@ -213,7 +213,6 @@ export class CouchDBService {
     const doc: CouchDBDocument = {
       _id: `property:${property.id}`,
       type: 'property',
-      id: property.id,
       number: property.number,
       ownerName: property.ownerName,
       status: property.status,
@@ -235,12 +234,12 @@ export class CouchDBService {
   // Transform CouchDB document to Payment
   private couchDocToPayment(doc: CouchDBDocument): Payment {
     return {
-      id: doc.id || doc._id.replace('payment:', ''),
+      id: doc._id.replace('payment:', ''),
       propertyId: doc.propertyId,
       amount: doc.amount,
       semester: doc.semester,
       date: doc.date,
-      status: doc.status,
+      status: doc.status as PaymentStatus,
       notes: doc.notes
     };
   }
@@ -250,7 +249,6 @@ export class CouchDBService {
     const doc: CouchDBDocument = {
       _id: `payment:${payment.id}`,
       type: 'payment',
-      id: payment.id,
       propertyId: payment.propertyId,
       amount: payment.amount,
       semester: payment.semester,
@@ -274,11 +272,12 @@ export class CouchDBService {
   // Transform CouchDB document to Incident
   private couchDocToIncident(doc: CouchDBDocument): Incident {
     return {
-      id: doc.id || doc._id.replace('incident:', ''),
+      id: doc._id.replace('incident:', ''),
+      propertyId: doc.propertyId,
       description: doc.description,
       dateReported: doc.dateReported,
       dateResolved: doc.dateResolved,
-      status: doc.status,
+      status: doc.status as IncidentStatus,
       notes: doc.notes
     };
   }
@@ -288,7 +287,6 @@ export class CouchDBService {
     const doc: CouchDBDocument = {
       _id: `incident:${incident.id}`,
       type: 'incident',
-      id: incident.id,
       description: incident.description,
       dateReported: incident.dateReported,
       status: incident.status,
@@ -298,6 +296,10 @@ export class CouchDBService {
 
     if (rev) {
       doc._rev = rev;
+    }
+
+    if (incident.propertyId) {
+      doc.propertyId = incident.propertyId;
     }
 
     if (incident.dateResolved) {
@@ -408,6 +410,12 @@ export class CouchDBService {
 
   async createPayment(payment: Payment): Promise<Payment> {
     try {
+      // Validación referencial: el predio debe existir
+      const property = await this.getProperty(payment.propertyId);
+      if (!property) {
+        throw new Error(`El predio con id '${payment.propertyId}' no existe`);
+      }
+
       const doc = this.paymentToCouchDoc(payment);
       await this.db.put(doc);
       return { ...payment };
@@ -419,6 +427,12 @@ export class CouchDBService {
 
   async updatePayment(payment: Payment): Promise<Payment> {
     try {
+      // Validación referencial: el predio debe existir
+      const property = await this.getProperty(payment.propertyId);
+      if (!property) {
+        throw new Error(`El predio con id '${payment.propertyId}' no existe`);
+      }
+
       const existing = await this.db.get(`payment:${payment.id}`) as CouchDBDocument;
       const doc = this.paymentToCouchDoc(payment, existing._rev);
       await this.db.put(doc);
@@ -504,6 +518,19 @@ export class CouchDBService {
   }
 }
 
-// Singleton instance
-export const couchdbService = new CouchDBService();
+// Lazy singleton - ensures process.env is populated before constructing
+let _instance: CouchDBService | null = null;
+
+export const couchdbService = new Proxy({} as CouchDBService, {
+  get(_target, prop, receiver) {
+    if (!_instance) {
+      _instance = new CouchDBService();
+    }
+    const value = (_instance as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(_instance);
+    }
+    return value;
+  }
+});
 
